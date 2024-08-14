@@ -79,6 +79,8 @@ enum SwiftPackageManager {
   ///   - platformVersion: The platform version to build for.
   ///   - hotReloadingEnabled: Controls whether the hot reloading environment variables
   ///     are added to the build command or not.
+  ///   - isUsingXcodeBuild: Controls whether this invocation is built using xcodebuild
+  ///     or if not, falls back to build with swift (the default).
   /// - Returns: If an error occurs, returns a failure.
   static func build(
     product: String,
@@ -88,7 +90,8 @@ enum SwiftPackageManager {
     architectures: [BuildArchitecture],
     platform: Platform,
     platformVersion: String,
-    hotReloadingEnabled: Bool = false
+    hotReloadingEnabled: Bool = false,
+    isUsingXcodeBuild: Bool = false
   ) -> Result<Void, SwiftPackageManagerError> {
     log.info("Starting \(configuration.rawValue) build")
 
@@ -132,6 +135,8 @@ enum SwiftPackageManager {
   ///   - platformVersion: The platform version to build for.
   ///   - hotReloadingEnabled: Controls whether the hot reloading environment variables
   ///     are added to the build command or not.
+  ///   - isUsingXcodeBuild: Controls whether this invocation is built using xcodebuild
+  ///     or if not, falls back to build with swift (the default).
   /// - Returns: If an error occurs, returns a failure.
   static func buildExecutableAsDylib(
     product: String,
@@ -141,7 +146,8 @@ enum SwiftPackageManager {
     architectures: [BuildArchitecture],
     platform: Platform,
     platformVersion: String,
-    hotReloadingEnabled: Bool = false
+    hotReloadingEnabled: Bool = false,
+    isUsingXcodeBuild: Bool = false
   ) -> Result<URL, SwiftPackageManagerError> {
     #if os(macOS)
       // TODO: Package up 'build options' into a struct so that it can be passed around
@@ -170,7 +176,8 @@ enum SwiftPackageManager {
         architectures: architectures,
         platform: platform,
         platformVersion: platformVersion,
-        hotReloadingEnabled: hotReloadingEnabled
+        hotReloadingEnabled: hotReloadingEnabled,
+        isUsingXcodeBuild: isUsingXcodeBuild
       ).flatMap { _ in
         let buildPlanFile = scratchDirectory.appendingPathComponent("\(configuration).yaml")
         let buildPlanString: String
