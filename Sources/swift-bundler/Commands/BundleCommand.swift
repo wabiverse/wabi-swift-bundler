@@ -218,6 +218,22 @@ struct BundleCommand: AsyncCommand {
           platformVersion: platformVersion
         ).unwrap()
 
+      // For all apple platforms (not including macOS), we generate xcode
+      // support, because macOS cannot cross-compile for any of the other
+      // darwin platforms like it can with linux, and thus we need to use
+      // xcodebuild to build for these platforms (ex. visionOS, iOS, etc)
+      if ![Platform.linux, Platform.macOS].contains(arguments.platform) {
+        let configuration = try PackageConfiguration.load(
+          fromDirectory: packageDirectory,
+          customFile: arguments.configurationFileOverride
+        ).unwrap()
+
+        try XcodeSupportGenerator.generateXcodeSupport(
+          for: configuration,
+          in: packageDirectory
+        ).unwrap()
+      }
+
       // Create build job
       let build: () async -> Result<Void, Error> = {
         SwiftPackageManager.build(
