@@ -222,11 +222,14 @@ struct BundleCommand: AsyncCommand {
           platformVersion: platformVersion
         ).unwrap()
 
+      var forceUsingXcodeBuild = isUsingXcodeBuild
       // For all apple platforms (not including macOS), we generate xcode
       // support, because macOS cannot cross-compile for any of the other
       // darwin platforms like it can with linux, and thus we need to use
       // xcodebuild to build for these platforms (ex. visionOS, iOS, etc)
-      if isUsingXcodeBuild || ![Platform.linux, Platform.macOS].contains(arguments.platform) {
+      if forceUsingXcodeBuild || ![Platform.linux, Platform.macOS].contains(arguments.platform) {
+        forceUsingXcodeBuild = true
+
         let configuration = try PackageConfiguration.load(
           fromDirectory: packageDirectory,
           customFile: arguments.configurationFileOverride
@@ -249,7 +252,7 @@ struct BundleCommand: AsyncCommand {
           platform: arguments.platform,
           platformVersion: platformVersion,
           hotReloadingEnabled: hotReloadingEnabled,
-          isUsingXcodeBuild: isUsingXcodeBuild
+          isUsingXcodeBuild: forceUsingXcodeBuild
         ).mapError { error in
           return error
         }

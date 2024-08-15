@@ -68,6 +68,45 @@ enum SwiftPackageManager {
     return create()
   }
 
+  struct XcodeDestinations: Codable {
+    var name: String = ""
+    var platform: String? = nil
+    var id: String? = nil
+    var OS: String? = nil
+    var arch: String? = nil
+    var variant: String? = nil
+    var error: String? = nil
+
+    enum CodingKeys: String, CodingKey, CaseIterable {
+      case platform = "platform"
+      case name = "name"
+      case id = "id"
+      case OS = "OS"
+      case arch = "arch"
+      case variant = "variant"
+      case error = "error"
+    }
+
+    subscript(_ keyPath: CodingKeys) -> String? {
+      get {
+        if let data = try? JSONEncoder().encode(self), var dict = try? JSONSerialization.jsonObject(with: data) as? [CodingKeys: String?] {
+          return dict[keyPath] ?? nil
+        } else {
+          return nil
+        }
+      }
+
+      set {
+        if let data = try? JSONEncoder().encode(self), var dict = try? JSONSerialization.jsonObject(with: data) as? [CodingKeys: String?] {
+          dict[keyPath] = newValue
+          if let newData = try? JSONSerialization.data(withJSONObject: dict), let newObj = try? JSONDecoder().decode(Self.self, from: newData) {
+            self = newObj
+          }
+        }
+      }
+    }
+  }
+
   /// Builds the specified product of a Swift package.
   /// - Parameters:
   ///   - product: The product to build.
@@ -103,12 +142,143 @@ enum SwiftPackageManager {
       platform: platform,
       platformVersion: platformVersion
     ).flatMap { arguments in
-      let process = Process.create(
-        "swift",
-        arguments: arguments,
-        directory: packageDirectory,
-        runSilentlyWhenNotVerbose: false
-      )
+
+      let process: Process
+
+      if isUsingXcodeBuild {
+
+        let destinationsData = Process.create(
+          "xcodebuild",
+          arguments: [
+            "-showdestinations",
+            "-scheme", product
+          ],
+          directory: packageDirectory,
+          runSilentlyWhenNotVerbose: false
+        )
+        .getOutputData()
+        .flatMapError { error -> Result<Data, SimulatorManagerError> in
+          return .failure(.failedToDecodeJSON(error))
+        }
+
+        // simple hardcoding of build destinations
+        // for easy testing and debugging during
+        // development.
+        let buildingForMacOS = 1
+        let buildingForXrOS = 8
+        let buildFor = buildingForXrOS
+
+        let decoder = JSONDecoder()
+        guard 
+          let data = destinationsData.success,
+          let output = String(data: data, encoding: .utf8)
+        else {
+          let debugOutput = String(data: destinationsData.success ?? .init(), encoding: .utf8)
+          let debug = String(debugOutput?.split(separator: "{")[buildFor] ?? "{}")
+          return .failure(.failedToParseTargetInfo(json: debug, nil))
+        }
+
+        let json = output.split(separator: "{")[buildFor]
+        var jsonData = String(("{" + json).split(separator: "}").joined(separator: "},").trimmingCharacters(in: .whitespacesAndNewlines).dropLast())
+        jsonData = jsonData.replacingOccurrences(of: "name:My Mac", with: "\"name\":\"My Mac\"")
+        jsonData = jsonData.replacingOccurrences(of: "name:Any DriverKit Host", with: "\"name\":\"Any DriverKit Host\"")
+        jsonData = jsonData.replacingOccurrences(of: "name:Any \"visionOS Simulator\" Device", with: "\"name\":\"Any visionOS Simulator Device\"")
+        jsonData = jsonData.replacingOccurrences(of: "name:Any visionOS Simulator Device", with: "\"name\":\"Any visionOS Simulator Device\"")
+        jsonData = jsonData.replacingOccurrences(of: "name:visionOS Simulator", with: "\"name\":\"visionOS Simulator\"")
+        jsonData = jsonData.replacingOccurrences(of: "platform:visionOS Simulator", with: "\"platform\":\"visionOS Simulator\"")
+        jsonData = jsonData.replacingOccurrences(of: "dvtdevice-DVTiOSDeviceSimulatorPlaceholder-xrsimulator:placeholder", with: "\"dvtdevice-DVTiOSDeviceSimulatorPlaceholder-xrsimulator:placeholder\"")
+        jsonData = jsonData.replacingOccurrences(of: "arch:", with: "\"arch\":")
+        jsonData = jsonData.replacingOccurrences(of: "id:", with: "\"id\":")
+        jsonData = jsonData.replacingOccurrences(of: "variant:", with: "\"variant\":")
+        // because we are supporting a very old swift version with swift bundler,
+        // we cannot use more than one character in .split(seperator:), therefore
+        // keep splitting at the ':' between { prop : value }
+        let keyValueCount = String(jsonData).split(separator: ",").count
+        for index in 0..<keyValueCount {
+          let valueOutput = String(jsonData).split(separator: ",")[index]
+          if let value = valueOutput.split(separator: ":").last {
+            // values may contain ':' within them too, ensure we get the entire
+            // value without chopping it up, the valuePrefixCount is calculated
+            // as ((total number of ':') - 1) for the key:value seperator.
+            var valuePrefixes = ""
+            let valuePrefixCount = valueOutput.split(separator: ":").count - 1
+            if valuePrefixCount > 1 {
+              for prefixIndex in 1..<valuePrefixCount {
+                valuePrefixes += valueOutput.split(separator: ":")[prefixIndex] + "@"
+              }
+            }
+
+            if value.contains("My") || value.contains("Any") || value.contains("Simulator") {
+              continue
+            }
+
+            // insert a '|' between { prop | value } delimitted by a '#' to use as a
+            // 'progress cursor' of sorts as we progress forward through each iteration
+            // of: { prop : value, } -> { 'prop' | 'value'# }
+            jsonData = jsonData.replacingOccurrences(of: "\(valuePrefixes)\(value)", with: "\"\(valuePrefixes)\(value)\"")
+          }
+        }
+        var destinationsJson = XcodeDestinations.CodingKeys.allCases.map({
+          if !$0.rawValue.contains("name") {
+            jsonData = jsonData.replacingOccurrences(of: "\($0.rawValue):", with: "\"\($0.rawValue)\":")
+          }
+          return jsonData
+        })
+        .joined(separator: ",")
+        // cleanup our '|' {key:value} progress cursor. 
+        .replacingOccurrences(of: "|", with: ":")
+        // cleanup our '@' {key:value:value} progress cursor. 
+        .replacingOccurrences(of: "@", with: ":")
+        .split(separator: "#")
+        .joined(separator: ",")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .dropLast()
+
+        let destinations: [XcodeDestinations]
+        do {
+          guard let destData = ("[" + String(destinationsJson) + "}]").data(using: .utf8) else {
+            return .failure(.failedToParseTargetInfo(json: String("[" + String(destinationsJson) + "}]"), nil))
+          }
+          destinations = try decoder.decode([XcodeDestinations].self, from: destData)
+        } catch {
+          return .failure(.failedToParseTargetInfo(json: String("[" + String(destinationsJson) + "}]"), error))
+        }
+
+        var destination: XcodeDestinations? = nil
+        for dest in destinations.filter({ $0.platform?.contains(platform.name.replacingOccurrences(of: "Simulator", with: " Simulator")) ?? false }) {
+          // if dest contains an OS property.
+          //if let os = dest.OS {
+          //  destination = dest
+          //}
+          destination = dest
+          break
+        }
+
+        guard let buildDest = destination else {
+          return .failure(.failedToRunSwiftBuild(
+            command: "xcodebuild Could not retrieve a valid build destination.",
+            .nonZeroExitStatus(-1)
+          ))
+        }
+
+        process = Process.create(
+          "xcodebuild",
+          arguments: [
+            "-scheme", product,
+            "-destination", "platform=\(String(buildDest.platform ?? platform.name))\(buildDest.id != nil ? ",id=B8E63E96-AFB0-4C35-BD2B-E7C71BFB772D" : "")\(",OS=\(platform == .visionOSSimulator ? "2.0" : buildDest.OS ?? platformVersion)"),name=\(platform == .visionOSSimulator ? "Apple Vision Pro" : buildDest.name)"
+          ],
+          directory: packageDirectory,
+          runSilentlyWhenNotVerbose: false
+        )
+      } else {
+        process = Process.create(
+          "swift",
+          arguments: arguments,
+          directory: packageDirectory,
+          runSilentlyWhenNotVerbose: false
+        )
+      }
+
       if hotReloadingEnabled {
         process.addEnvironmentVariables([
           "SWIFT_BUNDLER_HOT_RELOADING": "1"
@@ -117,7 +287,7 @@ enum SwiftPackageManager {
 
       return process.runAndWait().mapError { error in
         return .failedToRunSwiftBuild(
-          command: "swift \(arguments.joined(separator: " "))",
+          command: "\(isUsingXcodeBuild ? "xcodebuild" : "swift") \(arguments.joined(separator: " "))",
           error
         )
       }
