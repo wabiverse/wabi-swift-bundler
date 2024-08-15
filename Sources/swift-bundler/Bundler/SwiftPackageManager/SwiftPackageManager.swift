@@ -143,9 +143,20 @@ enum SwiftPackageManager {
       platformVersion: platformVersion
     ).flatMap { arguments in
 
+      var xcbeautify: Process?
       let process: Process
 
       if isUsingXcodeBuild {
+        if let xcbResources = Bundle.swiftBundler?.resourceURL?.appendingPathComponent("BuildTools") {
+          xcbeautify = Process.create(
+            "swift",
+            arguments: [
+              "run",
+              "-c", "release",
+              "--package-path", xcbResources.path
+            ]
+          )
+        }
 
         let destinationsData = Process.create(
           "xcodebuild",
@@ -283,6 +294,19 @@ enum SwiftPackageManager {
         process.addEnvironmentVariables([
           "SWIFT_BUNDLER_HOT_RELOADING": "1"
         ])
+      }
+
+      // pipe xcodebuild output to xcbeautify.
+      if let xcbeautify = xcbeautify {
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        xcbeautify.standardInput = pipe
+      }
+
+      do {
+        try xcbeautify?.run()
+      } catch {
+        print("error: \(error)")
       }
 
       return process.runAndWait().mapError { error in
