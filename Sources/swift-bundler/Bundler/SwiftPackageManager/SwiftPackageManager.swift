@@ -265,7 +265,7 @@ enum SwiftPackageManager {
           "xcodebuild",
           arguments: [
             "-scheme", product,
-            "-destination", "platform=\(String(buildDest.platform ?? platform.name))\(",OS=\(platform == .visionOSSimulator ? "2.0" : buildDest.OS ?? platformVersion)"),name=\(platform == .visionOSSimulator ? "Apple Vision Pro" : buildDest.name)"
+            "-destination", "platform=\(String(buildDest.platform ?? platform.name))\(",OS=\(String(platform == .visionOSSimulator ? "2.0" : buildDest.OS ?? platformVersion))"),name=\(platform == .visionOSSimulator ? "Apple Vision Pro" : buildDest.name)"
           ],
           directory: packageDirectory,
           runSilentlyWhenNotVerbose: false
