@@ -140,7 +140,6 @@ enum SwiftPackageManager {
       }
 
       if isUsingXcodeBuild {
-        let cleanupPipe = Pipe()
         let destinations: [XcodeDestinations] = [
           XcodeDestinations(name: "Apple Vision Pro", platform: "visionOS Simulator", OS: "2.0"),
           XcodeDestinations(name: "iPhone 15 Pro Max", platform: "iOS Simulator", OS: "18.0"),
