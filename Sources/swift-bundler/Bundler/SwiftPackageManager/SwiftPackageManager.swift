@@ -293,6 +293,8 @@ enum SwiftPackageManager {
             "-scheme", product,
             "-destination", "platform=\(String(buildDest.platform ?? platform.name))\(",OS=\(String(platform == .visionOSSimulator ? "2.0" : buildDest.OS ?? platformVersion))"),name=\(platform == .visionOSSimulator ? "Apple Vision Pro" : buildDest.name)",
             "-configuration", configuration.rawValue.capitalized,
+            "-usePackageSupportBuiltinSCM",
+            "-derivedDataPath", "\(outputDirectory.path)/.derivedData",
             "SYMROOT=\(outputDirectory.path)"
           ],
           directory: packageDirectory,

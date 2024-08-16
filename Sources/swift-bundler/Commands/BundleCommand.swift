@@ -272,21 +272,17 @@ struct BundleCommand: AsyncCommand {
             codeSigningContext = nil
           }
 
-          if !forceUsingXcodeBuild {
-            return DarwinBundler.bundle(
-              bundlerContext,
-              DarwinBundler.Context(
-                isXcodeBuild: builtWithXcode,
-                universal: universal,
-                standAlone: arguments.standAlone,
-                platform: applePlatform,
-                platformVersion: platformVersion,
-                codeSigningContext: codeSigningContext
-              )
-            ).intoAnyError()
-          } else {
-            return .success()
-          }
+          return DarwinBundler.bundle(
+            bundlerContext,
+            DarwinBundler.Context(
+              isXcodeBuild: builtWithXcode,
+              universal: universal,
+              standAlone: arguments.standAlone,
+              platform: applePlatform,
+              platformVersion: platformVersion,
+              codeSigningContext: codeSigningContext
+            )
+          ).intoAnyError()
         } else {
           return AppImageBundler.bundle(bundlerContext, ()).intoAnyError()
         }
