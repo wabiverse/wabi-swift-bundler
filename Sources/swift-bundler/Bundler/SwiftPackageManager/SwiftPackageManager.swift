@@ -143,21 +143,19 @@ enum SwiftPackageManager {
       platformVersion: platformVersion
     ).flatMap { arguments in
 
-      var xcbeautify: Process?
       let process: Process
 
-      if isUsingXcodeBuild {
-        if let xcbResources = Bundle.swiftBundler?.resourceURL?.appendingPathComponent("BuildTools") {
-          xcbeautify = Process.create(
-            "swift",
-            arguments: [
-              "run",
-              "-c", "release",
-              "--package-path", xcbResources.path
-            ]
-          )
-        }
+      var xcbeautify: Process?
+      if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/xcbeautify") {
+        xcbeautify = Process.create(
+          "xcbeautify",
+          directory: packageDirectory
+        )
+      } else {
+        log.warning("xcbeautify is not installed, install xcbeautify to cleanup your build output with:\nbrew install xcbeautify")
+      }
 
+      if isUsingXcodeBuild {
         let destinationsData = Process.create(
           "xcodebuild",
           arguments: [
