@@ -287,6 +287,8 @@ enum SwiftPackageManager {
           ))
         }
 
+        let archString = architectures.flatMap(\.rawValue).joined(separator: "_")
+
         process = Process.create(
           "xcodebuild",
           arguments: [
@@ -294,8 +296,8 @@ enum SwiftPackageManager {
             "-destination", "platform=\(String(buildDest.platform ?? platform.name))\(",OS=\(String(platform == .visionOSSimulator ? "2.0" : buildDest.OS ?? platformVersion))"),name=\(platform == .visionOSSimulator ? "Apple Vision Pro" : buildDest.name)",
             "-configuration", configuration.rawValue.capitalized,
             "-usePackageSupportBuiltinSCM",
-            "-derivedDataPath", "\(outputDirectory.path)/.derivedData",
-            "SYMROOT=\(outputDirectory.path)"
+            "-derivedDataPath", packageDirectory.appendingPathComponent(".build/\(archString)-apple-\(platform.sdkName)").path,
+            "-archivePath", outputDirectory.appendingPathComponent(product).path
           ],
           directory: packageDirectory,
           runSilentlyWhenNotVerbose: false
