@@ -129,6 +129,7 @@ enum SwiftPackageManager {
     architectures: [BuildArchitecture],
     platform: Platform,
     platformVersion: String,
+    outputDirectory: URL,
     hotReloadingEnabled: Bool = false,
     isUsingXcodeBuild: Bool = false
   ) -> Result<Void, SwiftPackageManagerError> {
@@ -292,7 +293,7 @@ enum SwiftPackageManager {
             "-scheme", product,
             "-destination", "platform=\(String(buildDest.platform ?? platform.name))\(",OS=\(String(platform == .visionOSSimulator ? "2.0" : buildDest.OS ?? platformVersion))"),name=\(platform == .visionOSSimulator ? "Apple Vision Pro" : buildDest.name)",
             "-configuration", configuration.rawValue.capitalized,
-            "SYMROOT=\(packageDirectory.appendingPathComponent(".build/bundler").path)"
+            "SYMROOT=\(outputDirectory.path)"
           ],
           directory: packageDirectory,
           runSilentlyWhenNotVerbose: false
@@ -355,6 +356,7 @@ enum SwiftPackageManager {
     architectures: [BuildArchitecture],
     platform: Platform,
     platformVersion: String,
+    outputDirectory: URL,
     hotReloadingEnabled: Bool = false,
     isUsingXcodeBuild: Bool = false
   ) -> Result<URL, SwiftPackageManagerError> {
@@ -385,6 +387,7 @@ enum SwiftPackageManager {
         architectures: architectures,
         platform: platform,
         platformVersion: platformVersion,
+        outputDirectory: outputDirectory,
         hotReloadingEnabled: hotReloadingEnabled,
         isUsingXcodeBuild: isUsingXcodeBuild
       ).flatMap { _ in

@@ -184,6 +184,7 @@ struct RunCommand: AsyncCommand {
                   architectures: architectures,
                   platform: arguments.platform,
                   platformVersion: platformVersion,
+                  outputDirectory: bundle,
                   hotReloadingEnabled: true
                 ).unwrap()
                 log.info("Successfully built dylib")

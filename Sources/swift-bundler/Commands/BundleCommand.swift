@@ -190,6 +190,15 @@ struct BundleCommand: AsyncCommand {
       let universal = arguments.universal || arguments.architectures.count > 1
       let architectures = getArchitectures(platform: arguments.platform)
 
+      var forceUsingXcodeBuild = isUsingXcodeBuild
+      // For all apple platforms (not including macOS), we generate xcode
+      // support, because macOS cannot cross-compile for any of the other
+      // darwin platforms like it can with linux, and thus we need to use
+      // xcodebuild to build for these platforms (ex. visionOS, iOS, etc)
+      if forceUsingXcodeBuild || ![Platform.linux, Platform.macOS].contains(arguments.platform) {
+        forceUsingXcodeBuild = true
+      }
+
       let outputDirectory = Self.getOutputDirectory(
         arguments.outputDirectory,
         scratchDirectory: scratchDirectory
@@ -222,15 +231,6 @@ struct BundleCommand: AsyncCommand {
           platformVersion: platformVersion
         ).unwrap()
 
-      var forceUsingXcodeBuild = isUsingXcodeBuild
-      // For all apple platforms (not including macOS), we generate xcode
-      // support, because macOS cannot cross-compile for any of the other
-      // darwin platforms like it can with linux, and thus we need to use
-      // xcodebuild to build for these platforms (ex. visionOS, iOS, etc)
-      if forceUsingXcodeBuild || ![Platform.linux, Platform.macOS].contains(arguments.platform) {
-        forceUsingXcodeBuild = true
-      }
-
       // Create build job
       let build: () async -> Result<Void, Error> = {
         SwiftPackageManager.build(
@@ -241,6 +241,7 @@ struct BundleCommand: AsyncCommand {
           architectures: architectures,
           platform: arguments.platform,
           platformVersion: platformVersion,
+          outputDirectory: outputDirectory,
           hotReloadingEnabled: hotReloadingEnabled,
           isUsingXcodeBuild: forceUsingXcodeBuild
         ).mapError { error in
