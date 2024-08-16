@@ -146,14 +146,16 @@ enum SwiftPackageManager {
       let process: Process
 
       var xcbeautify: Process?
-      if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/xcbeautify") {
-        xcbeautify = Process.create(
-          "xcbeautify",
-          directory: packageDirectory
-        )
-      } else {
-        log.warning("xcbeautify is not installed, install xcbeautify to cleanup your build output with:\nbrew install xcbeautify")
-      }
+      #if os(macOS) 
+        if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/xcbeautify") {
+          xcbeautify = Process.create(
+            "/opt/homebrew/bin/xcbeautify",
+            directory: packageDirectory
+          )
+        } else {
+          log.warning("xcbeautify is not installed, install xcbeautify to cleanup your build output with:\nbrew install xcbeautify")
+        }
+      #endif // os(macOS)
 
       if isUsingXcodeBuild {
         let destinationsData = Process.create(
