@@ -140,10 +140,22 @@ enum SwiftPackageManager {
       }
 
       if isUsingXcodeBuild {
-        let destinations: [XcodeDestinations] = [
-          XcodeDestinations(name: "Apple Vision Pro", platform: "visionOS Simulator", OS: "2.0"),
-          XcodeDestinations(name: "iPhone 15 Pro Max", platform: "iOS Simulator", OS: "18.0"),
-        ]
+        #if compiler(>=6.0)
+          let destinations: [XcodeDestinations] = [
+            XcodeDestinations(name: "Apple Vision Pro", platform: "visionOS Simulator", OS: "2.0"),
+            XcodeDestinations(name: "iPhone 15 Pro Max", platform: "iOS Simulator", OS: "18.0"),
+          ]
+        #elseif compiler(>=5.10)
+          let destinations: [XcodeDestinations] = [
+            XcodeDestinations(name: "Apple Vision Pro", platform: "visionOS Simulator", OS: "1.0"),
+            XcodeDestinations(name: "iPhone 15 Pro Max", platform: "iOS Simulator", OS: "17.4"),
+          ]
+        #else
+          let destinations: [XcodeDestinations] = [
+            XcodeDestinations(name: "Apple Vision Pro", platform: "visionOS Simulator", OS: "1.0"),
+            XcodeDestinations(name: "iPhone 15 Pro Max", platform: "iOS Simulator", OS: "17.0"),
+          ]
+        #endif
 
         var destination: XcodeDestinations? = nil
         for dest in destinations.filter({ $0.platform.contains(platform.name.replacingOccurrences(of: "Simulator", with: " Simulator")) }) {
