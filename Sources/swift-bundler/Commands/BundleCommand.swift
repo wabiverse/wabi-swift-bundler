@@ -220,16 +220,24 @@ struct BundleCommand: AsyncCommand {
       }
 
       // Get build output directory
-      let productsDirectory =
-        try arguments.productsDirectory
-        ?? SwiftPackageManager.getProductsDirectory(
-          in: packageDirectory,
-          scratchDirectory: scratchDirectory,
-          configuration: arguments.buildConfiguration,
-          architectures: architectures,
-          platform: arguments.platform,
-          platformVersion: platformVersion
-        ).unwrap()
+      let productsDirectory: URL
+
+      if !forceUsingXcodeBuild {
+        productsDirectory = try arguments.productsDirectory
+          ?? SwiftPackageManager.getProductsDirectory(
+            in: packageDirectory,
+            configuration: arguments.buildConfiguration,
+            architectures: architectures,
+            platform: arguments.platform,
+            platformVersion: platformVersion
+          ).unwrap()
+      } else {
+        let archString = architectures.flatMap(\.rawValue).joined(separator: "_")
+        productsDirectory = arguments.productsDirectory
+          ?? packageDirectory.appendingPathComponent(
+            ".build/\(archString)-apple-\(arguments.platform.sdkName)/Build/Products/\(arguments.buildConfiguration.rawValue.capitalized)-\(arguments.platform.sdkName)"
+          )
+      }
 
       // Create build job
       let build: () async -> Result<Void, Error> = {
@@ -275,7 +283,7 @@ struct BundleCommand: AsyncCommand {
           return DarwinBundler.bundle(
             bundlerContext,
             DarwinBundler.Context(
-              isXcodeBuild: builtWithXcode,
+              isXcodeBuild: builtWithXcode || forceUsingXcodeBuild,
               universal: universal,
               standAlone: arguments.standAlone,
               platform: applePlatform,
