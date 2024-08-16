@@ -103,26 +103,11 @@ struct RunCommand: AsyncCommand {
       await bundleCommand.run()
     }
 
-    let xcodeBuildOutputDirectory: URL
-    switch System.getApplicationSupportDirectory() {
-      case let .success(applicationSupport):
-        // This shouldn't be able to happen, but it would break stuff if it did
-        guard !applicationSupport.path.contains("'") else {
-          return
-        }
-
-        xcodeBuildOutputDirectory = applicationSupport
-          .appendingPathComponent("build")
-          .appendingPathComponent("\(appName).app")
-      case let .failure(error):
-        return
-    }
-
     let bundle: URL
     if device == .linux {
       bundle = outputDirectory.appendingPathComponent("\(appName).AppImage")
     } else {
-      bundle = usingXcodeBuild ? xcodeBuildOutputDirectory : outputDirectory.appendingPathComponent("\(appName).app")
+      bundle = outputDirectory.appendingPathComponent("\(appName).app")
     }
 
     let environmentVariables =
