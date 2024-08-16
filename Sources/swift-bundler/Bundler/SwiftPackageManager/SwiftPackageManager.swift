@@ -143,19 +143,33 @@ enum SwiftPackageManager {
       platformVersion: platformVersion
     ).flatMap { arguments in
 
+      let pipe = Pipe()
       let process: Process
 
       var xcbeautify: Process?
-      #if os(macOS) 
-        if FileManager.default.fileExists(atPath: "/opt/homebrew/bin/xcbeautify") {
+      let xcbeautifyCmd = Process.locate("xcbeautify")
+      switch xcbeautifyCmd
+      {
+        case .success(let cmd):
           xcbeautify = Process.create(
-            "/opt/homebrew/bin/xcbeautify",
-            directory: packageDirectory
+            cmd,
+            arguments: [
+              "--disable-logging"
+            ],
+            directory: packageDirectory,
+            runSilentlyWhenNotVerbose: false
           )
-        } else {
-          log.warning("xcbeautify is not installed, install xcbeautify to cleanup your build output with:\nbrew install xcbeautify")
-        }
-      #endif // os(macOS)
+        case .failure(let error):
+          #if os(macOS)
+            let helpMsg = "brew install xcbeautify"
+          #else
+            let helpMsg = "mint install cpisciotta/xcbeautify"
+          #endif
+          log.warning("""
+          xcbeautify was not found, for pretty build output please intall it with:\n
+          \(helpMsg)
+          """)
+      }
 
       if isUsingXcodeBuild {
         let destinationsData = Process.create(
@@ -298,7 +312,6 @@ enum SwiftPackageManager {
 
       // pipe xcodebuild output to xcbeautify.
       if let xcbeautify = xcbeautify {
-        let pipe = Pipe()
         process.standardOutput = pipe
         xcbeautify.standardInput = pipe
       }
@@ -306,7 +319,7 @@ enum SwiftPackageManager {
       do {
         try xcbeautify?.run()
       } catch {
-        print("error: \(error)")
+        log.warning("xcbeautify error: \(error)")
       }
 
       return process.runAndWait().mapError { error in
