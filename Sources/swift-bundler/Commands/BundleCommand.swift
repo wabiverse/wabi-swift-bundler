@@ -232,7 +232,7 @@ struct BundleCommand: AsyncCommand {
             platformVersion: platformVersion
           ).unwrap()
       } else {
-        let archString = architectures.flatMap(\.rawValue).joined(separator: "_")
+        let archString = architectures.flatMap({ $0.rawValue }).joined(separator: "_")
         productsDirectory = arguments.productsDirectory
           ?? packageDirectory.appendingPathComponent(
             ".build/\(archString)-apple-\(arguments.platform.sdkName)/Build/Products/\(arguments.buildConfiguration.rawValue.capitalized)-\(arguments.platform.sdkName)"
