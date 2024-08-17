@@ -68,12 +68,6 @@ enum SwiftPackageManager {
     return create()
   }
 
-  struct XcodeDestination: Codable {
-    var name: String = ""
-    var platform: String = ""
-    var OS: String = ""
-  }
-
   /// Builds the specified product of a Swift package.
   /// - Parameters:
   ///   - product: The product to build.
@@ -85,8 +79,6 @@ enum SwiftPackageManager {
   ///   - platformVersion: The platform version to build for.
   ///   - hotReloadingEnabled: Controls whether the hot reloading environment variables
   ///     are added to the build command or not.
-  ///   - isUsingXcodeBuild: Controls whether this invocation is built using xcodebuild
-  ///     or if not, falls back to build with swift (the default).
   /// - Returns: If an error occurs, returns a failure.
   static func build(
     product: String,
@@ -97,8 +89,7 @@ enum SwiftPackageManager {
     platform: Platform,
     platformVersion: String,
     outputDirectory: URL,
-    hotReloadingEnabled: Bool = false,
-    isUsingXcodeBuild: Bool = false
+    hotReloadingEnabled: Bool = false
   ) -> Result<Void, SwiftPackageManagerError> {
     log.info("Starting \(configuration.rawValue) build")
 
@@ -139,65 +130,12 @@ enum SwiftPackageManager {
           """)
       }
 
-      if isUsingXcodeBuild {
-        guard let simulators = try? SimulatorManager.listAvailableOSSimulators(for: platform).unwrap() else {
-          return .failure(.failedToRunSwiftBuild(
-            command: "xcodebuild: could not retrieve list of available destinations.",
-            .nonZeroExitStatus(-1)
-          ))
-        }
-
-        var destinations: [XcodeDestination] = []
-        for os in simulators.map(\.OS) {
-          for simulators in simulators.filter({ $0.OS == os }).map(\.simulators) {
-            for simulator in simulators {
-              destinations.append(
-                XcodeDestination(
-                  name: simulator.name, 
-                  platform: platform.name.replacingOccurrences(of: "Simulator", with: " Simulator"),
-                  OS: os
-                )
-              )
-            }
-          }
-        }
-
-        var destination: XcodeDestination? = nil
-        for dest in destinations.filter({ $0.platform.contains(platform.name.replacingOccurrences(of: "Simulator", with: " Simulator")) }) {
-          destination = dest
-          break
-        }
-
-        guard let buildDest = destination else {
-          return .failure(.failedToRunSwiftBuild(
-            command: "xcodebuild Could not retrieve a valid build destination.",
-            .nonZeroExitStatus(-1)
-          ))
-        }
-
-        let archString = architectures.flatMap(\.rawValue).joined(separator: "_")
-
-        process = Process.create(
-          "xcodebuild",
-          arguments: [
-            "-scheme", product,
-            "-destination", "platform=\(buildDest.platform),OS=\(buildDest.OS),name=\(buildDest.name)",
-            "-configuration", configuration.rawValue.capitalized,
-            "-usePackageSupportBuiltinSCM",
-            "-derivedDataPath", packageDirectory.appendingPathComponent(".build/\(archString)-apple-\(platform.sdkName)").path,
-            "-archivePath", outputDirectory.appendingPathComponent(product).path
-          ],
-          directory: packageDirectory,
-          runSilentlyWhenNotVerbose: false
-        )
-      } else {
-        process = Process.create(
-          "swift",
-          arguments: arguments,
-          directory: packageDirectory,
-          runSilentlyWhenNotVerbose: false
-        )
-      }
+      process = Process.create(
+        "swift",
+        arguments: arguments,
+        directory: packageDirectory,
+        runSilentlyWhenNotVerbose: false
+      )
 
       if hotReloadingEnabled {
         process.addEnvironmentVariables([
@@ -219,7 +157,7 @@ enum SwiftPackageManager {
 
       return process.runAndWait().mapError { error in
         return .failedToRunSwiftBuild(
-          command: "\(isUsingXcodeBuild ? "xcodebuild" : "swift") \(arguments.joined(separator: " "))",
+          command: "swift \(arguments.joined(separator: " "))",
           error
         )
       }
@@ -237,8 +175,6 @@ enum SwiftPackageManager {
   ///   - platformVersion: The platform version to build for.
   ///   - hotReloadingEnabled: Controls whether the hot reloading environment variables
   ///     are added to the build command or not.
-  ///   - isUsingXcodeBuild: Controls whether this invocation is built using xcodebuild
-  ///     or if not, falls back to build with swift (the default).
   /// - Returns: If an error occurs, returns a failure.
   static func buildExecutableAsDylib(
     product: String,
@@ -249,8 +185,7 @@ enum SwiftPackageManager {
     platform: Platform,
     platformVersion: String,
     outputDirectory: URL,
-    hotReloadingEnabled: Bool = false,
-    isUsingXcodeBuild: Bool = false
+    hotReloadingEnabled: Bool = false
   ) -> Result<URL, SwiftPackageManagerError> {
     #if os(macOS)
       // TODO: Package up 'build options' into a struct so that it can be passed around
@@ -280,8 +215,7 @@ enum SwiftPackageManager {
         platform: platform,
         platformVersion: platformVersion,
         outputDirectory: outputDirectory,
-        hotReloadingEnabled: hotReloadingEnabled,
-        isUsingXcodeBuild: isUsingXcodeBuild
+        hotReloadingEnabled: hotReloadingEnabled
       ).flatMap { _ in
         let buildPlanFile = scratchDirectory.appendingPathComponent("\(configuration).yaml")
         let buildPlanString: String

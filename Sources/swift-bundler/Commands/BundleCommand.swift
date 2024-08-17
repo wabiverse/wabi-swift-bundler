@@ -241,19 +241,32 @@ struct BundleCommand: AsyncCommand {
 
       // Create build job
       let build: () async -> Result<Void, Error> = {
-        SwiftPackageManager.build(
-          product: appConfiguration.product,
-          packageDirectory: packageDirectory,
-          scratchDirectory: scratchDirectory,
-          configuration: arguments.buildConfiguration,
-          architectures: architectures,
-          platform: arguments.platform,
-          platformVersion: platformVersion,
-          outputDirectory: outputDirectory,
-          hotReloadingEnabled: hotReloadingEnabled,
-          isUsingXcodeBuild: forceUsingXcodeBuild
-        ).mapError { error in
-          return error
+        if forceUsingXcodeBuild {
+          XcodeBuildManager.build(
+            product: appConfiguration.product,
+            packageDirectory: packageDirectory,
+            configuration: arguments.buildConfiguration,
+            architectures: architectures,
+            platform: arguments.platform,
+            platformVersion: platformVersion,
+            outputDirectory: outputDirectory,
+            hotReloadingEnabled: hotReloadingEnabled
+          ).mapError { error in
+            return error
+          }
+        } else {
+          SwiftPackageManager.build(
+            product: appConfiguration.product,
+            packageDirectory: packageDirectory,
+            configuration: arguments.buildConfiguration,
+            architectures: architectures,
+            platform: arguments.platform,
+            platformVersion: platformVersion,
+            outputDirectory: outputDirectory,
+            hotReloadingEnabled: hotReloadingEnabled
+          ).mapError { error in
+            return error
+          }
         }
       }
 
