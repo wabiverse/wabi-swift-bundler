@@ -68,7 +68,7 @@ enum SwiftPackageManager {
     return create()
   }
 
-  struct XcodeDestinations: Codable {
+  struct XcodeDestination: Codable {
     var name: String = ""
     var platform: String = ""
     var OS: String = ""
@@ -140,24 +140,29 @@ enum SwiftPackageManager {
       }
 
       if isUsingXcodeBuild {
-        #if compiler(>=6.0)
-          let destinations: [XcodeDestinations] = [
-            XcodeDestinations(name: "Apple Vision Pro", platform: "visionOS Simulator", OS: "2.0"),
-            XcodeDestinations(name: "iPhone 15 Pro Max", platform: "iOS Simulator", OS: "18.0"),
-          ]
-        #elseif compiler(>=5.10)
-          let destinations: [XcodeDestinations] = [
-            XcodeDestinations(name: "Apple Vision Pro", platform: "visionOS Simulator", OS: "1.0"),
-            XcodeDestinations(name: "iPhone 15 Pro Max", platform: "iOS Simulator", OS: "17.4"),
-          ]
-        #else
-          let destinations: [XcodeDestinations] = [
-            XcodeDestinations(name: "Apple Vision Pro", platform: "visionOS Simulator", OS: "1.0"),
-            XcodeDestinations(name: "iPhone 15 Pro Max", platform: "iOS Simulator", OS: "17.0"),
-          ]
-        #endif
+        guard let simulators = try? SimulatorManager.listAvailableOSSimulators(for: platform).unwrap() else {
+          return .failure(.failedToRunSwiftBuild(
+            command: "xcodebuild: could not retrieve list of available destinations.",
+            .nonZeroExitStatus(-1)
+          ))
+        }
 
-        var destination: XcodeDestinations? = nil
+        var destinations: [XcodeDestination] = []
+        for os in simulators.map(\.OS) {
+          for simulators in simulators.filter({ $0.OS == os }).map(\.simulators) {
+            for simulator in simulators {
+              destinations.append(
+                XcodeDestination(
+                  name: simulator.name, 
+                  platform: platform.name.replacingOccurrences(of: "Simulator", with: " Simulator"),
+                  OS: os
+                )
+              )
+            }
+          }
+        }
+
+        var destination: XcodeDestination? = nil
         for dest in destinations.filter({ $0.platform.contains(platform.name.replacingOccurrences(of: "Simulator", with: " Simulator")) }) {
           destination = dest
           break
