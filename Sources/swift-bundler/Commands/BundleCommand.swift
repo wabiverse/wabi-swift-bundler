@@ -229,9 +229,12 @@ struct BundleCommand: AsyncCommand {
           ).unwrap()
       } else {
         let archString = architectures.flatMap({ $0.rawValue }).joined(separator: "_")
+        // for some reason xcodebuild adds a platform suffix like Release-xrsimulator for visionOS
+        // however; for macOS there is no platform suffix at all.
+        let platformSuffix = arguments.platform == .macOS ? "" : "-\(arguments.platform.sdkName)"
         productsDirectory = arguments.productsDirectory
           ?? packageDirectory.appendingPathComponent(
-            ".build/\(archString)-apple-\(arguments.platform.sdkName)/Build/Products/\(arguments.buildConfiguration.rawValue.capitalized)-\(arguments.platform.sdkName)"
+            ".build/\(archString)-apple-\(arguments.platform.sdkName)/Build/Products/\(arguments.buildConfiguration.rawValue.capitalized)\(platformSuffix)"
           )
       }
 
