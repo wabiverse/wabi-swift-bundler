@@ -7,6 +7,7 @@ enum CLIError: LocalizedError {
   case invalidBuildConfiguration(String)
   case failedToCopyIcon(source: URL, destination: URL, Error)
   case failedToGetPlatformVersion(platform: Platform, manifest: URL)
+  case invalidXcodeprojDetected
 
   var errorDescription: String? {
     switch self {
@@ -23,6 +24,17 @@ enum CLIError: LocalizedError {
       case .failedToGetPlatformVersion(let platform, let manifest):
         return
           "To build for \(platform.name) you must specify a minimum deployment version for the relevant platform in the 'platforms' field of '\(manifest.relativePath)'"
+      case .invalidXcodeprojDetected:
+        return
+          """
+          The --xcodebuild flag, which is the default flag when building any embedded Darwin
+          platforms such as iOS, visionOS, tvOS, and watchOS will not function correctly while
+          an xcodeproj or xcworkspace is in the same directory as your Package.swift. Please
+          remove any .xcodeproj and .xcworkspace directories listed above and try again.
+
+          If you cannot remove the xcodeproj or xcworkspace, you must stick to Swift Bundler's
+          default SwiftPM-based build system.
+          """
     }
   }
 }
