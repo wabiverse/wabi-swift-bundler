@@ -191,6 +191,7 @@ struct BundleCommand: AsyncCommand {
       if forceUsingXcodeBuild || ![Platform.linux, Platform.macOS].contains(arguments.platform) {
         forceUsingXcodeBuild = true
       }
+      forceUsingXcodeBuild = arguments.noXcodebuild ? !arguments.noXcodebuild : forceUsingXcodeBuild
 
       if forceUsingXcodeBuild {
         // Terminate the program if the project is an Xcodeproj based project.
