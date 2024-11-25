@@ -241,6 +241,7 @@ struct BundleCommand: AsyncCommand {
         productsDirectory = try arguments.productsDirectory
           ?? SwiftPackageManager.getProductsDirectory(
             in: packageDirectory,
+            scratchDirectory: scratchDirectory,
             configuration: arguments.buildConfiguration,
             architectures: architectures,
             platform: arguments.platform,
@@ -276,6 +277,7 @@ struct BundleCommand: AsyncCommand {
           return SwiftPackageManager.build(
             product: appConfiguration.product,
             packageDirectory: packageDirectory,
+            scratchDirectory: scratchDirectory,
             configuration: arguments.buildConfiguration,
             architectures: architectures,
             platform: arguments.platform,
