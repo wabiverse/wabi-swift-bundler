@@ -84,7 +84,9 @@ struct BundlerContext {
 
   /// The app's main built executable file.
   var executableArtifact: URL {
-    productsDirectory.appendingPathComponent(appConfiguration.product)
+    BundlerContext.stripBlacklisted(
+      fileURL: productsDirectory.appendingPathComponent(appConfiguration.product)
+    )
   }
 
   /// Apple-specific code signing context used by bundlers that support Apple
@@ -98,6 +100,29 @@ struct BundlerContext {
     var entitlements: URL?
     /// A provisioning profile provided by the user.
     var manualProvisioningProfile: URL?
+  }
+
+  /// For stripping blacklisted directories from the path of a URL.
+  /// E.g. `Build/Products/Release-macosx` -> `Build/Products/Release`.
+  /// - Parameter fileURL: The URL to strip blacklisted directories from.
+  /// - Returns: The URL with blacklisted directories stripped.
+  static func stripBlacklisted(fileURL: URL) -> URL {
+    var stripped = fileURL
+
+    // Blacklisted directories.
+    // the first element is the directory to strip and
+    // the second is the directory to replace it with.
+    [
+      ("Build/Products/Debug-macosx", "Build/Products/Debug"),
+      ("Build/Products/Release-macosx", "Build/Products/Release")
+    ].forEach { blacklisted in
+      stripped = URL(fileURLWithPath: stripped.path.replacingOccurrences(
+        of: blacklisted.0, 
+        with: blacklisted.1)
+      )
+    }
+
+    return stripped
   }
 }
 

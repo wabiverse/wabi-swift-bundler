@@ -567,15 +567,17 @@ struct BundleCommand: ErrorHandledCommand {
           ?? SwiftPackageManager.getProductsDirectory(buildContext).unwrap()
       } else {
         let archString = architectures.compactMap({ $0.rawValue }).joined(separator: "_")
-        // xcodebuild adds a platform suffix to the products directory for
-        // certain platforms. E.g. it's 'Release-xrsimulator' for visionOS.
+        // xcodebuild adds a platform suffix to the products directory for certain platforms.
+        // E.g. it's 'Release' for macOS but 'Release-xrsimulator' for visionOS.
         let productsDirectoryBase = arguments.buildConfiguration.rawValue.capitalized
-        let platformSuffix = arguments.platform == .macOS ? "" : "-\(resolvedPlatform.sdkName)"
         productsDirectory =
-          arguments.productsDirectory
-          ?? (packageDirectory
-            / ".build/\(archString)-apple-\(resolvedPlatform.sdkName)"
-            / "Build/Products/\(productsDirectoryBase)\(platformSuffix)")
+          BundlerContext.stripBlacklisted(
+            fileURL: arguments.productsDirectory
+              ?? (packageDirectory
+                / ".build/\(archString)-apple-\(resolvedPlatform.sdkName)"
+                / "Build/Products"
+                / "\(productsDirectoryBase)-\(resolvedPlatform.sdkName)")
+          )
       }
 
       var bundlerContext = BundlerContext(
