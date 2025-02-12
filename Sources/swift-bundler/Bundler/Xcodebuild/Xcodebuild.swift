@@ -74,7 +74,7 @@ enum Xcodebuild {
             command,
             arguments: [
               "--disable-logging",
-              "--preserve-unbeautified",
+              //"--preserve-unbeautified",
             ],
             directory: buildContext.packageDirectory,
             runSilentlyWhenNotVerbose: false
@@ -91,15 +91,77 @@ enum Xcodebuild {
       .joined(separator: "_")
 
     let destinationArguments: [String]
-    if buildContext.platform == .macOS {
+
+    if buildContext.platform != .macOS {
+      // retrieving simulators for the -destination argument is only relevant for non-macOS platforms.
+      guard
+        let simulators = try? SimulatorManager.listAvailableOSSimulators(for: buildContext.platform)
+          .unwrap()
+      else {
+        return .failure(
+          .failedToRunXcodebuild(
+            command: "xcodebuild: could not retrieve list of available destinations.",
+            .nonZeroExitStatus(-1)
+          )
+        )
+      }
+
+      var destinations: [XcodebuildDestination] = []
+      for os in simulators.map(\.OS) {
+        for simulators in simulators.filter({ $0.OS == os }).map(\.simulators) {
+          for simulator in simulators {
+            destinations.append(
+              XcodebuildDestination(
+                name: simulator.name,
+                platform: buildContext.platform.name.replacingOccurrences(
+                  of: "Simulator", with: " Simulator"),
+                OS: os
+              )
+            )
+          }
+        }
+      }
+
+      // ----- some filters -----
+
+      // we only care about matching the specifed platform name.
+      let forPlatform: (XcodebuildDestination) -> Bool = { simulator in
+        return simulator.platform.contains(
+          buildContext.platform.name.replacingOccurrences(of: "Simulator", with: " Simulator"))
+      }
+      // we prefer to ignore iPhone SE models.
+      let removeBlacklisted: (XcodebuildDestination) -> Bool = { simulator in
+        return !simulator.name.contains("iPhone SE")
+      }
+
+      // ------------------------
+
+      // 1. sort from highest to lowest semantic versions...
+      destinations.sort { OSVersion($0.OS) > OSVersion($1.OS) }
+
+      var destination: XcodebuildDestination? = nil
+      for dest in destinations.filter({ forPlatform($0) && removeBlacklisted($0) }) {
+        // 2. because we grab the latest semantic version available here.
+        destination = dest
+        break
+      }
+
+      guard let buildDest = destination else {
+        return .failure(
+          .failedToRunXcodebuild(
+            command: "xcodebuild: could not retrieve a valid build destination.",
+            .nonZeroExitStatus(-1)
+          ))
+      }
+
       destinationArguments = [
         "-destination",
-        "platform=macOS,arch=\(archString)",
+        "platform=\(buildDest.platform),OS=\(buildDest.OS),name=\(buildDest.name)",
       ]
     } else {
       destinationArguments = [
         "-destination",
-        "generic/platform=\(applePlatform.xcodeDestinationName)",
+        "platform=macOS,arch=\(archString)",
       ]
     }
 
