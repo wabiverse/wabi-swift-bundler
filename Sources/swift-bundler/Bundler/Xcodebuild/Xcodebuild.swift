@@ -92,7 +92,12 @@ enum Xcodebuild {
 
     let destinationArguments: [String]
 
-    if buildContext.platform != .macOS {
+    if [.iOS, .visionOS, .tvOS].contains(buildContext.platform) {
+      destinationArguments = [
+        "-destination",
+        "platform=\(buildContext.platform.name),id=\(buildContext.physicalDevice!.id!)",
+      ]
+    } else if [.iOSSimulator, .visionOSSimulator, .tvOSSimulator].contains(buildContext.platform) {
       // retrieving simulators for the -destination argument is only relevant for non-macOS platforms.
       guard
         let simulators = try? SimulatorManager.listAvailableOSSimulators(for: buildContext.platform)

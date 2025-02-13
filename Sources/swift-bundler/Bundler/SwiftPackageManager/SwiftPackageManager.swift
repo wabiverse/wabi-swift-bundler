@@ -32,6 +32,9 @@ enum SwiftPackageManager {
     /// double clicked) or GUI executables (which open normally when double clicked
     /// but can't really be run from command prompt because they instantly detach).
     var isGUIExecutable: Bool
+    /// The device UUID to build for, only relevant for embedded apple platforms
+    /// E.g. iOS, visionOS, tvOS.
+    var physicalDevice: Device?
   }
 
   /// Creates a new package using the given directory as the package's root directory.

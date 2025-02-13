@@ -555,7 +555,8 @@ struct BundleCommand: ErrorHandledCommand {
           ? arguments.additionalXcodeBuildArguments
           : arguments.additionalSwiftPMArguments,
         hotReloadingEnabled: hotReloadingEnabled,
-        isGUIExecutable: true
+        isGUIExecutable: true,
+        physicalDevice: resolvedDevice
       )
 
       // Get build output directory
